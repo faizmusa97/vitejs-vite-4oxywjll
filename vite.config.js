@@ -11,7 +11,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost/crm',
+        target: 'https://hnfcrm.free.je',
         changeOrigin: true,
         secure: false,
       },
