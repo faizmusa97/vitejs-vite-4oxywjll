@@ -1719,4 +1719,4 @@ const schedTodoCount = computed(() => tasksList.value.filter((t) => t.status ===
 const schedInProgressCount = computed(() => tasksList.value.filter((t) => t.status === 'in-progress').length);
 const schedDoneCount = computed(() => tasksList.value.filter((t) => t.status === 'done').length);
 const schedCompletionRate = computed(() => Math.round((schedDoneCount.value / (tasksList.value.length || 1)) * 100));
-</template>
+</script>
