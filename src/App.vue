@@ -51,7 +51,7 @@
         :subtitle="pageInfo.subtitle"
         :current-role="currentRole"
         :system-roles="systemRoles"
-        @logout="isLoggedIn = false"
+        @logout="handleLogout"
         @navigate="(p) => { page = p; selectedCustomer = null; selectedEmployee = null; }"
         @change-role="switchRole"
       />
@@ -1239,7 +1239,7 @@ function safeInitials(str) {
   return initials(str);
 }
 
-const isLoggedIn = ref(true);
+const isLoggedIn = ref(localStorage.getItem('hnf_isLoggedIn') === 'true');
 const page = ref('dashboard');
 const selectedCustomer = ref(null);
 const showTaskModal = ref(false);
@@ -1393,6 +1393,7 @@ async function doLogin() {
     loginError.value = 'Please fill all fields.';
     return;
   }
+  loginError.value = '';
   const apiRes = await apiCall('login', {
     email: loginForm.value.email,
     password: loginForm.value.password,
@@ -1402,6 +1403,14 @@ async function doLogin() {
     return;
   }
   isLoggedIn.value = true;
+  if (loginForm.value.remember) {
+    localStorage.setItem('hnf_isLoggedIn', 'true');
+  }
+}
+
+function handleLogout() {
+  isLoggedIn.value = false;
+  localStorage.removeItem('hnf_isLoggedIn');
 }
 
 async function saveProfile() {
