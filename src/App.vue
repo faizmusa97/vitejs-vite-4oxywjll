@@ -1339,8 +1339,37 @@ function switchTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
   localStorage.setItem('crm_theme', t);
 }
+
+// Fetch remote data from Backend API on mount
+async function loadAPIData() {
+  try {
+    const [custRes, empRes, taskRes, ordRes] = await Promise.all([
+      apiCall('get_customers'),
+      apiCall('get_employees'),
+      apiCall('get_tasks'),
+      apiCall('get_orders'),
+    ]);
+
+    if (custRes && (Array.isArray(custRes) || Array.isArray(custRes.data))) {
+      customersList.value = Array.isArray(custRes) ? custRes : custRes.data;
+    }
+    if (empRes && (Array.isArray(empRes) || Array.isArray(empRes.data))) {
+      employeesList.value = Array.isArray(empRes) ? empRes : empRes.data;
+    }
+    if (taskRes && (Array.isArray(taskRes) || Array.isArray(taskRes.data))) {
+      tasksList.value = Array.isArray(taskRes) ? taskRes : taskRes.data;
+    }
+    if (ordRes && (Array.isArray(ordRes) || Array.isArray(ordRes.data))) {
+      ordersList.value = Array.isArray(ordRes) ? ordRes : ordRes.data;
+    }
+  } catch (e) {
+    console.warn('API connection notice:', e);
+  }
+}
+
 onMounted(() => {
   document.documentElement.setAttribute('data-theme', currentTheme.value);
+  loadAPIData();
 });
 
 const systemRoles = ref(SYSTEM_ROLES);
@@ -1364,6 +1393,14 @@ async function doLogin() {
     loginError.value = 'Please fill all fields.';
     return;
   }
+  const apiRes = await apiCall('login', {
+    email: loginForm.value.email,
+    password: loginForm.value.password,
+  });
+  if (apiRes && apiRes.error) {
+    loginError.value = apiRes.error;
+    return;
+  }
   isLoggedIn.value = true;
 }
 
@@ -1374,6 +1411,7 @@ async function saveProfile() {
     ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
     : parts[0].slice(0, 2).toUpperCase();
   userProfile.value = { ...profileForm.value, initials: init };
+  await apiCall('update_profile', profileForm.value);
   profileSuccessMsg.value = 'Profile updated successfully!';
   setTimeout(() => {
     profileSuccessMsg.value = '';
@@ -1395,8 +1433,11 @@ function openEditCustomer() {
   customerForm.value = { ...selectedCustomer.value };
   showCustomerModal.value = true;
 }
-function saveCustomer() {
+async function saveCustomer() {
   if (!customerForm.value.name || !customerForm.value.email) return;
+  const action = editingCustomer.value ? 'update_customer' : 'create_customer';
+  const apiRes = await apiCall(action, customerForm.value);
+
   if (editingCustomer.value) {
     const idx = customersList.value.findIndex(c => c.id === editingCustomer.value.id);
     if (idx !== -1) {
@@ -1405,7 +1446,7 @@ function saveCustomer() {
     }
   } else {
     const newC = {
-      id: Date.now(),
+      id: apiRes && apiRes.id ? apiRes.id : Date.now(),
       joined: new Date().toISOString().slice(0, 10),
       ...customerForm.value,
     };
@@ -1435,8 +1476,11 @@ function openEditEmployee() {
   employeeForm.value = { ...selectedEmployee.value };
   showEmployeeModal.value = true;
 }
-function saveEmployee() {
+async function saveEmployee() {
   if (!employeeForm.value.name || !employeeForm.value.email) return;
+  const action = editingEmployee.value ? 'update_employee' : 'create_employee';
+  const apiRes = await apiCall(action, employeeForm.value);
+
   if (editingEmployee.value) {
     const idx = employeesList.value.findIndex(e => e.id === editingEmployee.value.id);
     if (idx !== -1) {
@@ -1445,7 +1489,7 @@ function saveEmployee() {
     }
   } else {
     const newE = {
-      id: Date.now(),
+      id: apiRes && apiRes.id ? apiRes.id : Date.now(),
       ...employeeForm.value,
     };
     employeesList.value.unshift(newE);
@@ -1466,10 +1510,11 @@ function viewTask(t) {
   taskEditForm.value = { ...t };
   showTaskDetailModal.value = true;
 }
-function addTask() {
+async function addTask() {
   if (!taskForm.value.title) return;
+  const apiRes = await apiCall('create_task', taskForm.value);
   const newT = {
-    id: Date.now(),
+    id: apiRes && apiRes.id ? apiRes.id : Date.now(),
     status: 'todo',
     progress: 0,
     startDate: new Date().toISOString().slice(0, 10),
@@ -1488,8 +1533,9 @@ function addTask() {
   };
   showTaskModal.value = false;
 }
-function saveTaskEdit() {
+async function saveTaskEdit() {
   if (!taskEditForm.value.title || !selectedTask.value) return;
+  await apiCall('update_task', taskEditForm.value);
   const idx = tasksList.value.findIndex(t => t.id === selectedTask.value.id);
   if (idx !== -1) {
     tasksList.value[idx] = { ...selectedTask.value, ...taskEditForm.value };
@@ -1498,10 +1544,14 @@ function saveTaskEdit() {
   taskEditMode.value = false;
 }
 
-function addOrder() {
+async function addOrder() {
   if (!orderForm.value.title || !selectedCustomer.value) return;
+  const apiRes = await apiCall('create_order', {
+    ...orderForm.value,
+    customerId: selectedCustomer.value.id,
+  });
   const newO = {
-    id: Date.now(),
+    id: apiRes && apiRes.id ? apiRes.id : Date.now(),
     customerId: selectedCustomer.value.id,
     customerName: selectedCustomer.value.name,
     type: orderForm.value.type,
